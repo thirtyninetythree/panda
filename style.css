@@ -2,10 +2,9 @@
 
 div {
     font-family: 'Raleway', sans-serif;
-    margin: 0;
   }
 
-  #map {
+#map {
     position: absolute;
     top: 0;
     bottom: 0;

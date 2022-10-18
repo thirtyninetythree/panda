@@ -1,6 +1,12 @@
 import './style.css'
 
 import Box from '@mui/material/Box'
+import Drawer from '@mui/material/Drawer';
+import List from '@mui/material/List';
+import Divider from '@mui/material/Divider';
+import ListItem from '@mui/material/ListItem';
+import ListItemButton from '@mui/material/ListItemButton';
+import ListItemText from '@mui/material/ListItemText';
 
 import { TypeAnimation } from 'react-type-animation'
 import { Map, View } from 'ol'
@@ -41,8 +47,38 @@ function App() {
           repeat={Infinity} // Repeat this Animation Sequence infinitely
         />
       </Box>
+      <Drawer
+            variant="persistent"
+            anchor="right"
+            open={true}
+            onClose={null}
+            sx={{
+              width: 250,
+              flexShrink: 0,
+              '& .MuiDrawer-paper': {
+                width: 250,
+              },
+            }}
+          >
+            Carbon Capture Projects Capture Ability(Realtime)
+            <Divider />
+        <List>
+          {['Karura Project', 'Mangrove forest', 'Oloolua Forest', 'Garden'].map((text, index) => (
+            <ListItem key={text} disablePadding>
+              <ListItemButton>
+                {/* <ListItemIcon>
+                  {index % 2 === 0 ? <InboxIcon /> : <MailIcon />}
+                </ListItemIcon> */}
+                <ListItemText primary={text} />
+                <ListItemText primary={index} />
+              </ListItemButton>
+            </ListItem>
+          ))}
+        </List>
+        Total
+          </Drawer>
 
-      <div style={{height:'100vh',width:'80%', margin: 0, top: 180}}  id="map"></div>
+      <div style={{height:'600px',width:'800px', margin: 0, top: 180}}  id="map"></div>
     </div>
   )
 }

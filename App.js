@@ -27,7 +27,7 @@ function App() {
     <div className="App">
       <Box sx={{ width: '100%', maxWidth: 500 }}>
         <h1>panda.</h1>
-        <h5>carbon capture registry project that uses immutable smart contracts and satelittes</h5>
+        <h5>carbon capture registry that uses immutable smart contracts and satellites</h5>
 
         <TypeAnimation
           // Same String at the start will only be typed once, initially
@@ -78,7 +78,7 @@ function App() {
         Total
           </Drawer>
 
-      <div style={{height:'600px',width:'800px', margin: 0, top: 180}}  id="map"></div>
+      <div style={{height:'600px',width:'800px', margin: 10, top: 180}}  id="map"></div>
     </div>
   )
 }

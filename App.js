@@ -1,86 +1,275 @@
-import './style.css'
+import Draw from 'ol/interaction/Draw';
+import Map from 'ol/Map';
+import Overlay from 'ol/Overlay';
+import View from 'ol/View';
+import {Circle as CircleStyle, Fill, Stroke, Style} from 'ol/style';
+import {LineString, Polygon} from 'ol/geom';
+import {OSM, Vector as VectorSource} from 'ol/source';
+import {Tile as TileLayer, Vector as VectorLayer} from 'ol/layer';
+import {getArea, getLength} from 'ol/sphere';
+import {unByKey} from 'ol/Observable';
+import * as olProj from 'ol/proj';
 
-import Box from '@mui/material/Box'
-import Drawer from '@mui/material/Drawer';
-import List from '@mui/material/List';
-import Divider from '@mui/material/Divider';
-import ListItem from '@mui/material/ListItem';
-import ListItemButton from '@mui/material/ListItemButton';
-import ListItemText from '@mui/material/ListItemText';
+const raster = new TileLayer({
+  source: new OSM(),
+});
 
-import { TypeAnimation } from 'react-type-animation'
-import { Map, View } from 'ol'
-import TileLayer from 'ol/layer/Tile'
-import OSM from 'ol/source/OSM'
+const source = new VectorSource();
 
-function App() {
-  new Map({
-    layers: [new TileLayer({ source: new OSM() })],
-    view: new View({
-      center: [0, 0],
-      zoom: 2,
+const vector = new VectorLayer({
+  source: source,
+  style: {
+    'fill-color': 'rgba(255, 255, 255, 0.2)',
+    'stroke-color': '#ffcc33',
+    'stroke-width': 2,
+    'circle-radius': 7,
+    'circle-fill-color': '#ffcc33',
+  },
+});
+
+/**
+ * Currently drawn feature.
+ * @type {import("../src/ol/Feature.js").default}
+ */
+let sketch;
+
+/**
+ * The help tooltip element.
+ * @type {HTMLElement}
+ */
+let helpTooltipElement;
+
+/**
+ * The help tooltip element.
+ * @type {HTMLElement}
+ */
+let coordinates;
+
+/**
+ * Overlay to show the help messages.
+ * @type {Overlay}
+ */
+let helpTooltip;
+
+/**
+ * The measure tooltip element.
+ * @type {HTMLElement}
+ */
+let measureTooltipElement;
+
+/**
+ * Overlay to show the measurement.
+ * @type {Overlay}
+ */
+let measureTooltip;
+
+/**
+ * Message to show when the user is drawing a polygon.
+ * @type {string}
+ */
+const continuePolygonMsg = 'Click to continue drawing the polygon';
+
+/**
+ * Message to show when the user is drawing a line.
+ * @type {string}
+ */
+const continueLineMsg = 'Click to continue drawing the line';
+
+/**
+ * Handle pointer move.
+ * @param {import("../src/ol/MapBrowserEvent").default} evt The event.
+ */
+const pointerMoveHandler = function (evt) {
+  if (evt.dragging) {
+    return;
+  }
+  /** @type {string} */
+  let helpMsg = 'Click to start drawing';
+
+  if (sketch) {
+    const geom = sketch.getGeometry();
+    if (geom instanceof Polygon) {
+      helpMsg = continuePolygonMsg;
+    } else if (geom instanceof LineString) {
+      helpMsg = continueLineMsg;
+    }
+  }
+
+  helpTooltipElement.innerHTML = helpMsg;
+  helpTooltip.setPosition(evt.coordinate);
+
+  helpTooltipElement.classList.remove('hidden');
+};
+
+const map = new Map({
+  layers: [raster, vector],
+  target: 'map',
+  view: new View({
+    center: [-11000000, 4600000],
+    zoom: 2,
+  }),
+});
+
+map.on('pointermove', pointerMoveHandler);
+
+map.getViewport().addEventListener('mouseout', function () {
+  helpTooltipElement.classList.add('hidden');
+});
+
+const typeSelect = document.getElementById('type');
+
+let draw; // global so we can remove it later
+
+/**
+ * Format length output.
+ * @param {LineString} line The line.
+ * @return {string} The formatted length.
+ */
+const formatLength = function (line) {
+  const length = getLength(line);
+  let output;
+  if (length > 100) {
+    output = Math.round((length / 1000) * 100) / 100 + ' ' + 'km';
+  } else {
+    output = Math.round(length * 100) / 100 + ' ' + 'm';
+  }
+  return output;
+};
+
+/**
+ * Format area output.
+ * @param {Polygon} polygon The polygon.
+ * @return {string} Formatted area.
+ */
+const formatArea = function (polygon) {
+  const area = getArea(polygon);
+  let output;
+  if (area > 10000) {
+    output = Math.round((area / 1000000) * 100) / 100 + ' ' + 'km<sup>2</sup>';
+  } else {
+    output = Math.round(area * 100) / 100 + ' ' + 'm<sup>2</sup>';
+  }
+  return output;
+};
+
+function addInteraction() {
+  const type = typeSelect.value == 'area' ? 'Polygon' : 'LineString';
+  draw = new Draw({
+    source: source,
+    type: type,
+    style: new Style({
+      fill: new Fill({
+        color: 'rgba(255, 255, 255, 0.2)',
+      }),
+      stroke: new Stroke({
+        color: 'rgba(0, 0, 0, 0.5)',
+        lineDash: [10, 10],
+        width: 2,
+      }),
+      image: new CircleStyle({
+        radius: 5,
+        stroke: new Stroke({
+          color: 'rgba(0, 0, 0, 0.7)',
+        }),
+        fill: new Fill({
+          color: 'rgba(255, 255, 255, 0.2)',
+        }),
+      }),
     }),
-    target: 'map',
-  })
+  });
+  map.addInteraction(draw);
 
-  return (
-    <div className="App">
-      <Box sx={{ width: '100%', maxWidth: 500 }}>
-        <h1>panda.</h1>
-        <h5>carbon capture registry that uses immutable smart contracts and satellites</h5>
+  createMeasureTooltip();
+  createHelpTooltip();
 
-        <TypeAnimation
-          // Same String at the start will only be typed once, initially
-          sequence={[
-            'Earth needs you',
-            1000,
-            'Earth needs your farm',
-            1000,
-            'Earth needs you to monetize',
-            1000,
-            'Earth needs you to save it',
-            1000,
-          ]}
-          speed={50} // Custom Speed from 1-99 - Default Speed: 40
-          style={{ fontSize: '2em' }}
-          wrapper="span" // Animation will be rendered as a <span>
-          repeat={Infinity} // Repeat this Animation Sequence infinitely
-        />
-      </Box>
-      <Drawer
-            variant="persistent"
-            anchor="right"
-            open={true}
-            onClose={null}
-            sx={{
-              width: 250,
-              flexShrink: 0,
-              '& .MuiDrawer-paper': {
-                width: 250,
-              },
-            }}
-          >
-            Carbon Capture Projects Capture Ability(Realtime)
-            <Divider />
-        <List>
-          {['Karura Project', 'Mangrove forest', 'Oloolua Forest', 'Garden'].map((text, index) => (
-            <ListItem key={text} disablePadding>
-              <ListItemButton>
-                {/* <ListItemIcon>
-                  {index % 2 === 0 ? <InboxIcon /> : <MailIcon />}
-                </ListItemIcon> */}
-                <ListItemText primary={text} />
-                <ListItemText primary={index} />
-              </ListItemButton>
-            </ListItem>
-          ))}
-        </List>
-        Total
-          </Drawer>
+  let listener;
+  draw.on('drawstart', function (evt) {
+    // set sketch
+    sketch = evt.feature;
 
-      <div style={{height:'600px',width:'800px', margin: 10, top: 180}}  id="map"></div>
-    </div>
-  )
+    /** @type {import("../src/ol/coordinate.js").Coordinate|undefined} */
+    let tooltipCoord = evt.coordinate;
+    // console.log(tooltipCoord)
+
+    listener = sketch.getGeometry().on('change', function (evt) {
+      const geom = evt.target;
+      let output;
+      
+      if (geom instanceof Polygon) {
+        output = formatArea(geom);
+        tooltipCoord = geom.getInteriorPoint().getCoordinates();
+      } else if (geom instanceof LineString) {
+        output = formatLength(geom);
+        tooltipCoord = geom.getLastCoordinate();
+      }
+      
+      measureTooltipElement.innerHTML = output;
+      measureTooltip.setPosition(tooltipCoord);
+    });
+  });
+
+  draw.on('drawend', function (evt) {
+    const geom = evt.feature.getGeometry();
+    const tooltipCoord = geom.getCoordinates();
+    console.log(tooltipCoord[0][0])
+
+    // var lonlat = olProj.transform(evt.coordinate, 'EPSG:3857', 'EPSG:4326')
+    var lonlat = olProj.toLonLat(tooltipCoord[0][0], "EPSG:3857")
+    console.log(lonlat)
+ 
+    measureTooltipElement.className = 'ol-tooltip ol-tooltip-static';
+    measureTooltip.setOffset([0, -7]);
+    // unset sketch
+    sketch = null;
+    // unset tooltip so that a new one can be created
+    measureTooltipElement = null;
+    createMeasureTooltip();
+    unByKey(listener);
+  });
 }
 
-export default App
+/**
+ * Creates a new help tooltip
+ */
+function createHelpTooltip() {
+  if (helpTooltipElement) {
+    helpTooltipElement.parentNode.removeChild(helpTooltipElement);
+  }
+  helpTooltipElement = document.createElement('div');
+  helpTooltipElement.className = 'ol-tooltip hidden';
+  helpTooltip = new Overlay({
+    element: helpTooltipElement,
+    offset: [15, 0],
+    positioning: 'center-left',
+  });
+  map.addOverlay(helpTooltip);
+}
+
+/**
+ * Creates a new measure tooltip
+ */
+function createMeasureTooltip() {
+  if (measureTooltipElement) {
+    measureTooltipElement.parentNode.removeChild(measureTooltipElement);
+  }
+  measureTooltipElement = document.createElement('div');
+  measureTooltipElement.className = 'ol-tooltip ol-tooltip-measure';
+  measureTooltip = new Overlay({
+    element: measureTooltipElement,
+    offset: [0, -15],
+    positioning: 'bottom-center',
+    stopEvent: false,
+    insertFirst: false,
+  });
+  map.addOverlay(measureTooltip);
+}
+
+/**
+ * Let user change the geometry type.
+ */
+typeSelect.onchange = function () {
+  map.removeInteraction(draw);
+  addInteraction();
+};
+
+addInteraction();
